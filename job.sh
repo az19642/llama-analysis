@@ -14,19 +14,20 @@ source $SLURM_TMPDIR/venv/bin/activate
 pip install --no-index torch transformers datasets accelerate sentencepiece protobuf zstandard
 
 # use model and dataset directly instead of through HF cache (has issues with identifying correct files)
-mkdir -p $SLURM_TMPDIR/slimpajama && cp slimpajama/example_train_[0-1].jsonl.zst $SLURM_TMPDIR/slimpajama
 # cp -r slimpajama $SLURM_TMPDIR
+mkdir -p $SLURM_TMPDIR/slimpajama && cp slimpajama/example_train_[2-3].jsonl.zst $SLURM_TMPDIR/slimpajama
 cp -r Llama-2-7b-hf $SLURM_TMPDIR
+
 export HF_HUB_OFFLINE=1
 export HF_HOME=./huggingface
 
-# 10000 examples creates ~1.5TB dataset
+# 10000 examples creates ~1.7TB dataset
 python main.py \
     --base-dir $SLURM_TMPDIR \
     --model-name Llama-2-7b-hf \
     --dataset-name slimpajama \
     --output-dir $SLURM_TMPDIR/generated_dataset \
-    --max-examples 20000 \ # each example_train_i contains 9980 examples
+    --max-examples 20000 \
     --buffer-size 1 \
     --batch-size 1 \
     --max-length 4096 \
