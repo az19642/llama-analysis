@@ -1,9 +1,8 @@
 #!/bin/bash
-#SBATCH --account=rrg-mmehride
-#SBATCH --gres=gpu:1
+#SBATCH --account=def-mmehride_cpu
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=20G
-#SBATCH --time=0-20:00:00
+#SBATCH --mem=2G
+#SBATCH --time=0-10:00:00
 #SBATCH --output=%N-%j.out
 
 module load python/3.10.13 gcc/12.3 arrow/18.1.0
@@ -16,4 +15,4 @@ pip install --no-index torch transformers datasets accelerate tensorboard senten
 export HF_HUB_OFFLINE=1
 export HF_HOME=./huggingface
 
-python main.py
+python combine_datasets.py

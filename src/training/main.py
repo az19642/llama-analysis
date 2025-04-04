@@ -44,6 +44,7 @@ class LlamaLayerTrainer(nn.Module):
             if hasattr(module, "bias") and module.bias is not None:
                 module.bias.data.zero_()
 
+        # Note that this applies recursively to all submodules
         target.apply(zero_weights)
 
     def forward(self, input_ids, attention_mask, **kwargs):
@@ -63,7 +64,7 @@ class LlamaLayerTrainer(nn.Module):
     def gradient_checkpointing_disable(self):
         self.model.gradient_checkpointing_disable()
 
-    # Fixes some issues with Trainer with gradient checkpointing.
+    # Fixes issues with Trainer when using gradient checkpointing.
     @property
     def config(self):
         return self.model.config
@@ -114,7 +115,7 @@ def collate_fn(
 
         target_hidden_states_list.append(hs)
 
-    # Stack hidden states, shape is (batch_size, seq_len, hidden_dim=4096)
+    # Stack hidden states, shape: (batch_size, seq_len, hidden_dim=4096)
     target_hidden_states = torch.stack(target_hidden_states_list)
 
     # Note we need the attention mask for the loss calculation
@@ -158,11 +159,13 @@ class CustomTrainer(Trainer):
 
 
 def main():
-    # model_path = os.path.join(os.getenv("SLURM_TMPDIR", ""), "Llama-2-7b-hf")
-    # dataset_path = os.path.join(os.getenv("SLURM_TMPDIR", ""), "layer_1")
-    model_path = "Llama-2-7b-hf"
-    dataset_path = "layer_1"
-    target_layer = 1 # (0 to 31)
+    model_path = os.path.join(
+        os.getenv("SCRATCH"), "llama-experiment", "models", "Llama-2-7b-hf"
+    )
+    dataset_path = os.path.join(
+        os.getenv("SCRATCH"), "llama-experiment", "datasets", "layer_1_combined"
+    )
+    target_layer = 1  # (0 to 31)
 
     # Create a Llama wrapper that zeroes out target layer, among other things
     model = LlamaLayerTrainer(model_path, target_layer)
@@ -176,26 +179,23 @@ def main():
         output_dir=f"./llama_layer_{target_layer}_train",
         per_device_train_batch_size=4,
         per_device_eval_batch_size=4,
-        gradient_accumulation_steps=8,  # Effective batch = 2*8=16
-        num_train_epochs=5,
+        gradient_accumulation_steps=8,  # Effective batch = 4*8=32
+        num_train_epochs=10,
         logging_dir="./logs",
-        logging_steps=1000,
-        save_strategy="steps",
-        save_steps=1000,
-        eval_strategy="steps",
-        eval_steps=1000,
+        logging_steps=500,
+        save_steps=500,
+        eval_steps=500,
         report_to="tensorboard",
         learning_rate=2e-5,
         bf16=True,  # Use bf16 for mixed precision training
-        gradient_checkpointing=True,  # Massively reduce GPU memory usage which we need for this script
+        gradient_checkpointing=True,  # Reduce GPU memory usage which we need for this script
         gradient_checkpointing_kwargs={"use_reentrant": False},
         metric_for_best_model="eval_loss",
         load_best_model_at_end=True,
-        greater_is_better=False,
         remove_unused_columns=False,  # Ensure columns are kept in dataset as we use a custom data processor (collate_fn)
     )
 
-    # Create partial function for collate_fn with the llama tokenizer
+    # Create partial function for collate_fn with the Llama tokenizer
     collate_fn_with_tokenizer = partial(collate_fn, tokenizer=model.tokenizer)
 
     trainer = CustomTrainer(

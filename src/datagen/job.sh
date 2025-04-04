@@ -13,10 +13,13 @@ source $SLURM_TMPDIR/venv/bin/activate
 
 pip install --no-index torch transformers datasets accelerate sentencepiece protobuf zstandard
 
+PROJ_DIR=$HOME/llama-experiment
+
 # use model and dataset directly instead of through HF cache (has issues with identifying correct files)
-# cp -r slimpajama $SLURM_TMPDIR
-mkdir -p $SLURM_TMPDIR/slimpajama && cp slimpajama/example_train_[2-3].jsonl.zst $SLURM_TMPDIR/slimpajama
-cp -r Llama-2-7b-hf $SLURM_TMPDIR
+mkdir -p $SLURM_TMPDIR/slimpajama
+cp $PROJ_DIR/datasets/slimpajama/example_train_[2-3].jsonl.zst $SLURM_TMPDIR/slimpajama
+
+cp -r $PROJ_DIR/models/Llama-2-7b-hf $SLURM_TMPDIR
 
 export HF_HUB_OFFLINE=1
 export HF_HOME=./huggingface
